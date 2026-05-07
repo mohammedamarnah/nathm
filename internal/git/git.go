@@ -6,7 +6,7 @@
 //   - gives us a natural test seam: real impl in tests, fake impl in unit tests
 package git
 
-import "github.com/USER/nathm/internal/branch"
+import "github.com/mohammedamarnah/nathm/internal/branch"
 
 // Git is the surface area nathm needs from the git CLI.
 // Methods are added as features need them.

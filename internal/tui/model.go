@@ -14,8 +14,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
 
-	"github.com/USER/nathm/internal/branch"
-	"github.com/USER/nathm/internal/git"
+	"github.com/mohammedamarnah/nathm/internal/branch"
+	"github.com/mohammedamarnah/nathm/internal/git"
 )
 
 type sortMode int

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/USER/nathm/internal/branch"
+	"github.com/mohammedamarnah/nathm/internal/branch"
 	tea "github.com/charmbracelet/bubbletea"
 )
 

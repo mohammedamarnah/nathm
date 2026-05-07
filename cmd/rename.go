@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/USER/nathm/internal/git"
+	"github.com/mohammedamarnah/nathm/internal/git"
 )
 
 var renameCmd = &cobra.Command{

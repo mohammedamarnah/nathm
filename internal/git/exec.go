@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/USER/nathm/internal/branch"
+	"github.com/mohammedamarnah/nathm/internal/branch"
 )
 
 // Exec is the real git CLI wrapper.

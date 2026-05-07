@@ -1,11 +1,11 @@
 # nathm
 
-`nathm` (Arabic نظم — *to organize*) is a TUI-first CLI for organizing and cleaning up local git branches.
+`nathm` (Arabic نَظْم — *to organize*) is a TUI-first CLI for organization and cleaning up of local git branches.
 
 ## Install
 
 ```bash
-go install github.com/USER/nathm@latest
+go install github.com/mohammedamarnah/nathm@latest
 ```
 
 (Replace `USER` with the GitHub user/org once published.)

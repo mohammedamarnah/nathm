@@ -11,9 +11,9 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
-	"github.com/USER/nathm/internal/branch"
-	"github.com/USER/nathm/internal/config"
-	"github.com/USER/nathm/internal/git"
+	"github.com/mohammedamarnah/nathm/internal/branch"
+	"github.com/mohammedamarnah/nathm/internal/config"
+	"github.com/mohammedamarnah/nathm/internal/git"
 )
 
 var pruneYes bool

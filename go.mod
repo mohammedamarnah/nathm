@@ -1,4 +1,4 @@
-module github.com/USER/nathm
+module github.com/mohammedamarnah/nathm
 
 go 1.26.2
 

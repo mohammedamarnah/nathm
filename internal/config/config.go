@@ -20,7 +20,7 @@ type Config struct {
 }
 
 const defaultTOML = `# nathm configuration
-# https://github.com/USER/nathm
+# https://github.com/mohammedamarnah/nathm
 
 # Glob patterns for branches that should never be deleted or renamed.
 # Examples: "release/*", "hotfix/*", "user/<your-name>/*"

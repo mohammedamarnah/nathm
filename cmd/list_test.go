@@ -13,7 +13,7 @@ func TestList_Smoke(t *testing.T) {
 	// Build the binary into the tempdir.
 	tmp := t.TempDir()
 	bin := filepath.Join(tmp, "nathm")
-	build := exec.Command("go", "build", "-o", bin, "github.com/USER/nathm")
+	build := exec.Command("go", "build", "-o", bin, "github.com/mohammedamarnah/nathm")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
 	}

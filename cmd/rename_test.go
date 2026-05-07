@@ -12,7 +12,7 @@ import (
 func TestRename_LocalBranch(t *testing.T) {
 	tmp := t.TempDir()
 	bin := filepath.Join(tmp, "nathm")
-	if out, err := exec.Command("go", "build", "-o", bin, "github.com/USER/nathm").CombinedOutput(); err != nil {
+	if out, err := exec.Command("go", "build", "-o", bin, "github.com/mohammedamarnah/nathm").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
 	repo := t.TempDir()
