@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -11,9 +12,10 @@ import (
 
 // tuiFakeGit lets the model run without a real repo.
 type tuiFakeGit struct {
-	deleted  []string
-	renamed  [][2]string
-	checkout []string
+	deleted   []string
+	renamed   [][2]string
+	checkout  []string
+	deleteErr map[string]error // optional: per-branch delete failure injection
 }
 
 func (f *tuiFakeGit) IsRepo() bool                                 { return true }
@@ -21,6 +23,9 @@ func (f *tuiFakeGit) ListBranches() ([]branch.Branch, error)      { return nil, 
 func (f *tuiFakeGit) AheadBehind(string, string) (int, int, error) { return 0, 0, nil }
 func (f *tuiFakeGit) MergedInto(string, string) (bool, error)     { return false, nil }
 func (f *tuiFakeGit) DeleteBranch(name string, force bool) error {
+	if err, ok := f.deleteErr[name]; ok {
+		return err
+	}
 	f.deleted = append(f.deleted, name)
 	return nil
 }
@@ -181,6 +186,46 @@ func TestModel_CheckoutFlow(t *testing.T) {
 
 	if len(g.checkout) != 1 || g.checkout[0] != "feature" {
 		t.Fatalf("expected checkout of feature, got %v", g.checkout)
+	}
+}
+
+func TestModel_DeleteFailure_KeepsBranchInList(t *testing.T) {
+	bs := []branch.Branch{
+		{Name: "feature-ok", LastCommitTime: time.Now()},
+		{Name: "feature-fail", LastCommitTime: time.Now()},
+	}
+	g := &tuiFakeGit{
+		deleteErr: map[string]error{
+			"feature-fail": errors.New("not fully merged"),
+		},
+	}
+	m := NewModel(bs, g)
+	m.SetSize(120, 30)
+
+	// Select both branches.
+	m.SetCursorByName("feature-ok")
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	m.SetCursorByName("feature-fail")
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+
+	// Delete (d), confirm (y).
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+
+	// feature-ok should be gone, feature-fail should remain visible.
+	out := m.View()
+	if strings.Contains(out, "feature-ok") {
+		t.Errorf("feature-ok should be removed after successful delete:\n%s", out)
+	}
+	if !strings.Contains(out, "feature-fail") {
+		t.Errorf("feature-fail should remain after failed delete:\n%s", out)
+	}
+	// And feature-fail should stay selected so the user can retry with D.
+	if !m.IsSelected("feature-fail") {
+		t.Errorf("failed branch should remain selected for retry; selection: %v", m.Selected())
+	}
+	if m.IsSelected("feature-ok") {
+		t.Errorf("successfully deleted branch should be deselected")
 	}
 }
 

@@ -320,24 +320,26 @@ func (m *Model) byName(name string) (branch.Branch, bool) {
 func (m *Model) runConfirmedAction() {
 	force := m.confirmKind == confirmForceDelete
 	var failed []string
+	succeeded := map[string]bool{}
 	for _, name := range m.confirmTargets {
 		if err := m.git.DeleteBranch(name, force); err != nil {
 			failed = append(failed, name+": "+err.Error())
+			continue
 		}
+		succeeded[name] = true
 	}
-	// Drop deleted from the in-memory list so the UI updates.
-	deleted := map[string]bool{}
-	for _, n := range m.confirmTargets {
-		deleted[n] = true
-	}
+	// Drop only the actually-deleted branches; failed ones stay in the list
+	// so the user can retry (e.g. with D for force).
 	keep := make([]branch.Branch, 0, len(m.branches))
 	for _, b := range m.branches {
-		if !deleted[b.Name] {
+		if !succeeded[b.Name] {
 			keep = append(keep, b)
 		}
 	}
 	m.branches = keep
-	m.clearSelection()
+	for name := range succeeded {
+		delete(m.selected, name)
+	}
 	if len(failed) > 0 {
 		m.err = "errors: " + strings.Join(failed, "; ")
 	} else {
