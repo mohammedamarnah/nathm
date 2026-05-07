@@ -229,6 +229,32 @@ func TestModel_DeleteFailure_KeepsBranchInList(t *testing.T) {
 	}
 }
 
+func TestModel_EscDismissesError(t *testing.T) {
+	bs := []branch.Branch{
+		{Name: "feature", LastCommitTime: time.Now()},
+	}
+	g := &tuiFakeGit{
+		deleteErr: map[string]error{"feature": errors.New("not fully merged")},
+	}
+	m := NewModel(bs, g)
+	m.SetSize(120, 30)
+	m.SetCursorByName("feature")
+
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	if m.err == "" {
+		t.Fatal("setup: expected an error after failed delete")
+	}
+	if !strings.Contains(m.View(), "esc:dismiss") {
+		t.Errorf("error footer should hint esc:dismiss, got:\n%s", m.View())
+	}
+
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyEsc})
+	if m.err != "" {
+		t.Errorf("esc should clear m.err, still: %q", m.err)
+	}
+}
+
 func TestModel_SelectionPreservesCursor(t *testing.T) {
 	bs := []branch.Branch{
 		{Name: "a", LastCommitTime: time.Now()},

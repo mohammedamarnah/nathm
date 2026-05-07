@@ -168,6 +168,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		// On the list screen, esc dismisses a sticky error message.
+		if msg.Type == tea.KeyEsc {
+			if m.err != "" {
+				m.err = ""
+				return m, nil
+			}
+			return m, nil
+		}
+
 		// Main keymap.
 		switch {
 		case key.Matches(msg, keys.Help):
@@ -230,7 +239,8 @@ func (m *Model) View() string {
 		footer = "rename: " + m.renameInput.View() + "  (enter:save · esc:cancel)"
 	}
 	if m.err != "" {
-		footer = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Render(m.err)
+		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
+		footer = errStyle.Render(m.err) + dim.Render("  (esc:dismiss)")
 	}
 	if m.showHelp {
 		mid = m.renderHelp()
