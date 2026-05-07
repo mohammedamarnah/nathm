@@ -154,3 +154,30 @@ func TestExec_DeleteBranch_Force(t *testing.T) {
 		t.Fatalf("force delete: %v", err)
 	}
 }
+
+func TestExec_RenameBranch(t *testing.T) {
+	dir := newTestRepo(t)
+	runIn(t, dir, "git", "branch", "old")
+	g := NewExec(dir)
+	if err := g.RenameBranch("old", "new"); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	bs, _ := g.ListBranches()
+	names := map[string]bool{}
+	for _, b := range bs {
+		names[b.Name] = true
+	}
+	if !names["new"] || names["old"] {
+		t.Fatalf("expected rename old→new, got %v", names)
+	}
+}
+
+func TestExec_RenameBranch_TargetExists(t *testing.T) {
+	dir := newTestRepo(t)
+	runIn(t, dir, "git", "branch", "old")
+	runIn(t, dir, "git", "branch", "new")
+	g := NewExec(dir)
+	if err := g.RenameBranch("old", "new"); err == nil {
+		t.Fatal("expected error renaming to existing branch")
+	}
+}
