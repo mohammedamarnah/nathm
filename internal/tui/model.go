@@ -101,6 +101,17 @@ func (m *Model) SetRenameValue(s string) {
 	m.renameInput.SetValue(s)
 }
 
+// SetCursorByName moves the table cursor to the row for the named branch.
+func (m *Model) SetCursorByName(name string) {
+	visible := m.visibleBranches()
+	for i, b := range visible {
+		if b.Name == name {
+			m.table.SetCursor(i)
+			return
+		}
+	}
+}
+
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -193,6 +204,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.Rename):
 			m.beginRename()
 			return m, nil
+		case key.Matches(msg, keys.Checkout):
+			m.doCheckout()
+			return m, nil
 		}
 	}
 	var cmd tea.Cmd
@@ -203,7 +217,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) View() string {
 	header := lipgloss.NewStyle().Bold(true).Render("nathm — local branches")
 	mid := m.table.View()
-	footer := dim.Render("space:select / a:all / A:clear / /:filter / s:sort / p:stale-only / d:del / D:force / r:rename / q:quit")
+	footer := dim.Render("space:select / a:all / A:clear / /:filter / s:sort / p:stale-only / d:del / D:force / r:rename / c:checkout / q:quit")
 	if m.filterOn {
 		footer = m.filter.View()
 	}
@@ -344,6 +358,22 @@ func (m *Model) cancelRename() {
 	m.renameSource = ""
 	m.renameInput.SetValue("")
 	m.renameInput.Blur()
+}
+
+func (m *Model) doCheckout() {
+	name := m.CurrentName()
+	if name == "" {
+		return
+	}
+	if err := m.git.Checkout(name); err != nil {
+		m.err = "checkout failed: " + err.Error()
+		return
+	}
+	for i := range m.branches {
+		m.branches[i].IsCurrent = (m.branches[i].Name == name)
+	}
+	m.err = ""
+	m.rebuildTable()
 }
 
 func (m *Model) rebuildTable() {

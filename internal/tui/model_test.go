@@ -166,3 +166,20 @@ func TestModel_RenameFlow(t *testing.T) {
 		t.Fatalf("expected rename old→new, got %v", g.renamed)
 	}
 }
+
+func TestModel_CheckoutFlow(t *testing.T) {
+	bs := []branch.Branch{
+		{Name: "main", IsCurrent: true, Protected: true, LastCommitTime: time.Now()},
+		{Name: "feature", LastCommitTime: time.Now()},
+	}
+	g := &tuiFakeGit{}
+	m := NewModel(bs, g)
+	m.SetSize(120, 30)
+	// Move cursor to feature.
+	m.SetCursorByName("feature")
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+
+	if len(g.checkout) != 1 || g.checkout[0] != "feature" {
+		t.Fatalf("expected checkout of feature, got %v", g.checkout)
+	}
+}
