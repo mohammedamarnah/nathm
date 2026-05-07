@@ -64,5 +64,18 @@ func (e *Exec) AheadBehind(br, base string) (int, int, error) {
 	return ahead, behind, nil
 }
 
+func (e *Exec) MergedInto(br, base string) (bool, error) {
+	cmd := exec.Command("git", "merge-base", "--is-ancestor", br, base)
+	cmd.Dir = e.dir
+	err := cmd.Run()
+	if err == nil {
+		return true, nil
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+		return false, nil // documented "not an ancestor" exit code
+	}
+	return false, fmt.Errorf("git merge-base: %w", err)
+}
+
 // Compile-time check that *Exec satisfies the Git interface.
 var _ Git = (*Exec)(nil)

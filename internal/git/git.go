@@ -14,4 +14,5 @@ type Git interface {
 	IsRepo() bool
 	ListBranches() ([]branch.Branch, error)
 	AheadBehind(branch, base string) (ahead, behind int, err error)
+	MergedInto(branch, base string) (bool, error)
 }

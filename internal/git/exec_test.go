@@ -53,6 +53,38 @@ func TestExec_ListBranches_MultipleBranches(t *testing.T) {
 	}
 }
 
+func TestExec_MergedInto(t *testing.T) {
+	dir := newTestRepo(t)
+	runIn(t, dir, "git", "checkout", "-q", "-b", "feature")
+	writeFile(t, dir, "f.txt", "f")
+	runIn(t, dir, "git", "add", "f.txt")
+	runIn(t, dir, "git", "commit", "-q", "-m", "f")
+	runIn(t, dir, "git", "checkout", "-q", "main")
+	runIn(t, dir, "git", "merge", "--no-ff", "-q", "-m", "merge feature", "feature")
+
+	g := NewExec(dir)
+	merged, err := g.MergedInto("feature", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !merged {
+		t.Fatal("feature should be merged into main")
+	}
+
+	// unmerged branch
+	runIn(t, dir, "git", "checkout", "-q", "-b", "unmerged")
+	writeFile(t, dir, "u.txt", "u")
+	runIn(t, dir, "git", "add", "u.txt")
+	runIn(t, dir, "git", "commit", "-q", "-m", "u")
+	merged, err = g.MergedInto("unmerged", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if merged {
+		t.Fatal("unmerged should not be reported as merged")
+	}
+}
+
 func TestExec_AheadBehind(t *testing.T) {
 	dir := newTestRepo(t)
 	// add 2 commits on main
