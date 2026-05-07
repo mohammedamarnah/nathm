@@ -53,6 +53,11 @@ type Model struct {
 	// confirm modal state
 	confirmKind    confirmKind
 	confirmTargets []string
+
+	// rename input state
+	renameOn     bool
+	renameSource string
+	renameInput  textinput.Model
 }
 
 func NewModel(branches []branch.Branch, g git.Git) *Model {
@@ -60,12 +65,18 @@ func NewModel(branches []branch.Branch, g git.Git) *Model {
 	ti.Placeholder = "filter..."
 	ti.CharLimit = 80
 	ti.Width = 40
+
+	ri := textinput.New()
+	ri.CharLimit = 200
+	ri.Width = 40
+
 	m := &Model{
-		branches: branches,
-		git:      g,
-		now:      time.Now(),
-		selected: make(map[string]bool),
-		filter:   ti,
+		branches:    branches,
+		git:         g,
+		now:         time.Now(),
+		selected:    make(map[string]bool),
+		filter:      ti,
+		renameInput: ri,
 	}
 	m.rebuildTable()
 	return m
@@ -82,12 +93,35 @@ func (m *Model) Init() tea.Cmd { return nil }
 // Confirming reports whether the confirm modal is active.
 func (m *Model) Confirming() bool { return m.confirmKind != confirmNone }
 
+// Renaming reports whether the rename input is active.
+func (m *Model) Renaming() bool { return m.renameOn }
+
+// SetRenameValue sets the rename input value (used by tests for deterministic input).
+func (m *Model) SetRenameValue(s string) {
+	m.renameInput.SetValue(s)
+}
+
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.SetSize(msg.Width, msg.Height)
 		return m, nil
 	case tea.KeyMsg:
+		// Rename input mode has highest priority.
+		if m.renameOn {
+			switch msg.Type {
+			case tea.KeyEsc:
+				m.cancelRename()
+				return m, nil
+			case tea.KeyEnter:
+				m.commitRename()
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.renameInput, cmd = m.renameInput.Update(msg)
+			return m, cmd
+		}
+
 		// Confirm modal.
 		if m.Confirming() {
 			switch msg.String() {
@@ -156,6 +190,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.ForceDelete):
 			m.beginDelete(true)
 			return m, nil
+		case key.Matches(msg, keys.Rename):
+			m.beginRename()
+			return m, nil
 		}
 	}
 	var cmd tea.Cmd
@@ -166,9 +203,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) View() string {
 	header := lipgloss.NewStyle().Bold(true).Render("nathm — local branches")
 	mid := m.table.View()
-	footer := dim.Render("space:select / a:all / A:clear / /:filter / s:sort / p:stale-only / d:del / D:force / q:quit")
+	footer := dim.Render("space:select / a:all / A:clear / /:filter / s:sort / p:stale-only / d:del / D:force / r:rename / q:quit")
 	if m.filterOn {
 		footer = m.filter.View()
+	}
+	if m.renameOn {
+		footer = "rename: " + m.renameInput.View() + "  (enter:save · esc:cancel)"
 	}
 	if m.err != "" {
 		footer = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Render(m.err)
@@ -262,6 +302,48 @@ func (m *Model) runConfirmedAction() {
 	m.confirmKind = confirmNone
 	m.confirmTargets = nil
 	m.rebuildTable()
+}
+
+func (m *Model) beginRename() {
+	name := m.CurrentName()
+	if name == "" {
+		return
+	}
+	if b, ok := m.byName(name); ok && b.Protected {
+		m.err = "cannot rename protected branch"
+		return
+	}
+	m.renameOn = true
+	m.renameSource = name
+	m.renameInput.SetValue(name)
+	m.renameInput.Focus()
+}
+
+func (m *Model) commitRename() {
+	newName := strings.TrimSpace(m.renameInput.Value())
+	if newName == "" || newName == m.renameSource {
+		m.cancelRename()
+		return
+	}
+	if err := m.git.RenameBranch(m.renameSource, newName); err != nil {
+		m.err = "rename failed: " + err.Error()
+		m.cancelRename()
+		return
+	}
+	for i := range m.branches {
+		if m.branches[i].Name == m.renameSource {
+			m.branches[i].Name = newName
+		}
+	}
+	m.cancelRename()
+	m.rebuildTable()
+}
+
+func (m *Model) cancelRename() {
+	m.renameOn = false
+	m.renameSource = ""
+	m.renameInput.SetValue("")
+	m.renameInput.Blur()
 }
 
 func (m *Model) rebuildTable() {

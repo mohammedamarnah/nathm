@@ -12,6 +12,7 @@ type keyMap struct {
 	StaleOnly   key.Binding
 	Delete      key.Binding
 	ForceDelete key.Binding
+	Rename      key.Binding
 }
 
 var keys = keyMap{
@@ -24,4 +25,5 @@ var keys = keyMap{
 	StaleOnly:   key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "stale only")),
 	Delete:      key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete")),
 	ForceDelete: key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "force delete")),
+	Rename:      key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rename")),
 }

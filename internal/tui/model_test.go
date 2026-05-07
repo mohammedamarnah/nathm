@@ -144,3 +144,25 @@ func TestModel_DeleteFlow(t *testing.T) {
 		t.Fatalf("expected delete of feature, got %v", g.deleted)
 	}
 }
+
+func TestModel_RenameFlow(t *testing.T) {
+	bs := []branch.Branch{
+		{Name: "old-name", LastCommitTime: time.Now()},
+	}
+	g := &tuiFakeGit{}
+	m := NewModel(bs, g)
+	m.SetSize(120, 30)
+
+	// press r to start rename
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	if !m.Renaming() {
+		t.Fatal("expected rename mode")
+	}
+	// Use the public helper to set the rename value (deterministic vs typing).
+	m.SetRenameValue("new-name")
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	if len(g.renamed) != 1 || g.renamed[0] != [2]string{"old-name", "new-name"} {
+		t.Fatalf("expected rename old→new, got %v", g.renamed)
+	}
+}
