@@ -52,3 +52,30 @@ func TestExec_ListBranches_MultipleBranches(t *testing.T) {
 		t.Fatalf("names = %q, want %q", got, want)
 	}
 }
+
+func TestExec_AheadBehind(t *testing.T) {
+	dir := newTestRepo(t)
+	// add 2 commits on main
+	writeFile(t, dir, "a.txt", "a")
+	runIn(t, dir, "git", "add", "a.txt")
+	runIn(t, dir, "git", "commit", "-q", "-m", "a")
+	// branch off and add 1 commit
+	runIn(t, dir, "git", "checkout", "-q", "-b", "feature")
+	writeFile(t, dir, "b.txt", "b")
+	runIn(t, dir, "git", "add", "b.txt")
+	runIn(t, dir, "git", "commit", "-q", "-m", "b")
+	// add another commit on main
+	runIn(t, dir, "git", "checkout", "-q", "main")
+	writeFile(t, dir, "c.txt", "c")
+	runIn(t, dir, "git", "add", "c.txt")
+	runIn(t, dir, "git", "commit", "-q", "-m", "c")
+
+	g := NewExec(dir)
+	ahead, behind, err := g.AheadBehind("feature", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ahead != 1 || behind != 1 {
+		t.Fatalf("ahead/behind = %d/%d, want 1/1", ahead, behind)
+	}
+}

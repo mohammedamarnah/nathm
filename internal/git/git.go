@@ -13,4 +13,5 @@ import "github.com/USER/nathm/internal/branch"
 type Git interface {
 	IsRepo() bool
 	ListBranches() ([]branch.Branch, error)
+	AheadBehind(branch, base string) (ahead, behind int, err error)
 }

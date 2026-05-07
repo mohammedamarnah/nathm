@@ -3,6 +3,8 @@ package git
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/USER/nathm/internal/branch"
 )
@@ -38,6 +40,28 @@ func (e *Exec) ListBranches() ([]branch.Branch, error) {
 		return nil, fmt.Errorf("git for-each-ref: %w", err)
 	}
 	return branch.ParseForEachRef(out)
+}
+
+func (e *Exec) AheadBehind(br, base string) (int, int, error) {
+	cmd := exec.Command("git", "rev-list", "--left-right", "--count", base+"..."+br)
+	cmd.Dir = e.dir
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, 0, fmt.Errorf("git rev-list: %w", err)
+	}
+	parts := strings.Fields(strings.TrimSpace(string(out)))
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("unexpected rev-list output: %q", out)
+	}
+	behind, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, 0, fmt.Errorf("parse behind: %w", err)
+	}
+	ahead, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return 0, 0, fmt.Errorf("parse ahead: %w", err)
+	}
+	return ahead, behind, nil
 }
 
 // Compile-time check that *Exec satisfies the Git interface.
