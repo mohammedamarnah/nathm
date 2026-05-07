@@ -8,8 +8,6 @@
 go install github.com/mohammedamarnah/nathm@latest
 ```
 
-(Replace `USER` with the GitHub user/org once published.)
-
 ## Usage
 
 ### Interactive
@@ -28,9 +26,9 @@ Keys:
 | `space` | toggle selection |
 | `a` | select all visible |
 | `A` | clear selection |
-| `d` | safe delete (cursor or selected) |
+| `d` | safe delete |
 | `D` | force delete |
-| `r` | rename (cursor only) |
+| `r` | rename |
 | `c` | checkout |
 | `/` | filter |
 | `s` | cycle sort |
@@ -57,6 +55,3 @@ nathm version
 - `base_branches` — preference order for base branch detection.
 - `default_sort` — `stale-first` | `name` | `age`.
 
-## Status
-
-v0.1: TUI + prune + rename + list. GitHub PR awareness and remote rename are deferred to v2.
