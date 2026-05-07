@@ -229,6 +229,28 @@ func TestModel_DeleteFailure_KeepsBranchInList(t *testing.T) {
 	}
 }
 
+func TestModel_DeleteConfirm_EnterAlsoConfirms(t *testing.T) {
+	bs := []branch.Branch{
+		{Name: "feature", LastCommitTime: time.Now()},
+	}
+	g := &tuiFakeGit{}
+	m := NewModel(bs, g)
+	m.SetSize(120, 30)
+	m.SetCursorByName("feature")
+
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if !m.Confirming() {
+		t.Fatal("expected confirm modal active")
+	}
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyEnter})
+	if len(g.deleted) != 1 || g.deleted[0] != "feature" {
+		t.Fatalf("enter should confirm and delete; got %v", g.deleted)
+	}
+	if m.Confirming() {
+		t.Error("modal should close after confirm")
+	}
+}
+
 func TestModel_EscDismissesError(t *testing.T) {
 	bs := []branch.Branch{
 		{Name: "feature", LastCommitTime: time.Now()},

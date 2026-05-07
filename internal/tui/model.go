@@ -137,15 +137,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Confirm modal.
 		if m.Confirming() {
-			switch msg.String() {
-			case "y", "Y":
+			if msg.Type == tea.KeyEnter || msg.String() == "y" || msg.String() == "Y" {
 				m.runConfirmedAction()
 				return m, nil
-			default:
-				m.confirmKind = confirmNone
-				m.confirmTargets = nil
-				return m, nil
 			}
+			m.confirmKind = confirmNone
+			m.confirmTargets = nil
+			return m, nil
 		}
 
 		// Filter input mode.
@@ -281,7 +279,7 @@ func (m *Model) renderConfirm() string {
 	title := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("203")).
 		Render(fmt.Sprintf("%s %d branch(es)?", verb, len(m.confirmTargets)))
 	body := strings.Join(m.confirmTargets, "\n  ")
-	help := dim.Render("y to confirm · any other key to cancel")
+	help := dim.Render("y/enter to confirm · any other key to cancel")
 	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)
 	return box.Render(lipgloss.JoinVertical(lipgloss.Left, title, "  "+body, "", help))
 }
