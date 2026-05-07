@@ -551,6 +551,13 @@ func (m *Model) applySort(in []branch.Branch) []branch.Branch {
 		})
 	default: // sortStaleFirst
 		sort.SliceStable(out, func(i, j int) bool {
+			// master is always pinned to the top in the default sort.
+			if out[i].Name == "master" || out[i].Name == "main" {
+				return true
+			}
+			if out[j].Name == "master" || out[j].Name == "main" {
+				return false
+			}
 			si, sj := stalePriority(out[i]), stalePriority(out[j])
 			if si != sj {
 				return si > sj

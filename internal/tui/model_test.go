@@ -138,6 +138,8 @@ func TestModel_DeleteFlow(t *testing.T) {
 	g := &tuiFakeGit{}
 	m := NewModel(bs, g)
 	m.SetSize(120, 30)
+	// main is pinned to row 0 by the default sort; move cursor onto feature.
+	m.SetCursorByName("feature")
 	// Press d.
 	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
 	if !m.Confirming() {
@@ -226,6 +228,30 @@ func TestModel_DeleteFailure_KeepsBranchInList(t *testing.T) {
 	}
 	if m.IsSelected("feature-ok") {
 		t.Errorf("successfully deleted branch should be deselected")
+	}
+}
+
+func TestModel_DefaultSort_PinsMasterFirst(t *testing.T) {
+	old := time.Now().Add(-90 * 24 * time.Hour)
+	bs := []branch.Branch{
+		{Name: "feature-a", LastCommitTime: time.Now()},
+		{Name: "stale", UpstreamGone: true, LastCommitTime: old}, // would normally be first (stale + oldest)
+		{Name: "master", IsCurrent: true, LastCommitTime: time.Now()},
+		{Name: "feature-b", LastCommitTime: time.Now()},
+	}
+	m := NewModel(bs, nil)
+	m.SetSize(120, 30)
+	got := m.visibleBranches()
+	if len(got) == 0 || got[0].Name != "master" {
+		names := make([]string, len(got))
+		for i, b := range got {
+			names[i] = b.Name
+		}
+		t.Fatalf("master should be first in default sort; got order: %v", names)
+	}
+	// Stale branch should still beat active ones AFTER master.
+	if got[1].Name != "stale" {
+		t.Errorf("stale should follow master; got %q at index 1", got[1].Name)
 	}
 }
 
