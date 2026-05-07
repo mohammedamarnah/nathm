@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -24,6 +25,7 @@ type Model struct {
 	height   int
 	now      time.Time
 	err      string
+	selected map[string]bool
 }
 
 func NewModel(branches []branch.Branch, g git.Git) *Model {
@@ -31,6 +33,7 @@ func NewModel(branches []branch.Branch, g git.Git) *Model {
 		branches: branches,
 		git:      g,
 		now:      time.Now(),
+		selected: make(map[string]bool),
 	}
 	m.rebuildTable()
 	return m
@@ -50,9 +53,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.SetSize(msg.Width, msg.Height)
 		return m, nil
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c", "esc":
+		switch {
+		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, keys.Select):
+			m.toggleSelect(m.CurrentName())
+			m.rebuildTable()
+			return m, nil
+		case key.Matches(msg, keys.SelectAll):
+			m.selectAllVisible()
+			m.rebuildTable()
+			return m, nil
+		case key.Matches(msg, keys.ClearAll):
+			m.clearSelection()
+			m.rebuildTable()
+			return m, nil
 		}
 	}
 	var cmd tea.Cmd
@@ -62,7 +77,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) View() string {
 	header := lipgloss.NewStyle().Bold(true).Render("nathm — local branches")
-	footer := dim.Render("q quit · (more keys coming)")
+	footer := dim.Render("space:select / a:all / A:clear / q:quit")
 	if m.err != "" {
 		footer = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Render(m.err)
 	}
@@ -71,7 +86,7 @@ func (m *Model) View() string {
 
 func (m *Model) rebuildTable() {
 	cols := []table.Column{
-		{Title: "", Width: 2},   // current marker
+		{Title: "Sel", Width: 4},
 		{Title: "Branch", Width: 32},
 		{Title: "Status", Width: 12},
 		{Title: "Age", Width: 12},
@@ -80,9 +95,12 @@ func (m *Model) rebuildTable() {
 	}
 	rows := make([]table.Row, 0, len(m.branches))
 	for _, b := range branchesSorted(m.branches) {
-		marker := " "
+		marker := "[ ]"
+		if m.selected[b.Name] {
+			marker = "[x]"
+		}
 		if b.IsCurrent {
-			marker = "*"
+			marker = " * "
 		}
 		rows = append(rows, table.Row{
 			marker,
@@ -103,6 +121,55 @@ func (m *Model) rebuildTable() {
 	}
 }
 
+// CurrentName returns the branch name of the currently highlighted row.
+func (m *Model) CurrentName() string {
+	row := m.table.SelectedRow()
+	if len(row) < 2 {
+		return ""
+	}
+	return row[1]
+}
+
+// IsSelected reports whether the branch with the given name is selected.
+func (m *Model) IsSelected(name string) bool {
+	return m.selected[name]
+}
+
+// Selected returns the sorted list of selected branch names.
+func (m *Model) Selected() []string {
+	out := make([]string, 0, len(m.selected))
+	for name, ok := range m.selected {
+		if ok {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (m *Model) toggleSelect(name string) {
+	if name == "" {
+		return
+	}
+	if m.selected[name] {
+		delete(m.selected, name)
+	} else {
+		m.selected[name] = true
+	}
+}
+
+func (m *Model) selectAllVisible() {
+	for _, b := range branchesSorted(m.branches) {
+		if !b.Protected && !b.IsCurrent {
+			m.selected[b.Name] = true
+		}
+	}
+}
+
+func (m *Model) clearSelection() {
+	m.selected = map[string]bool{}
+}
+
 // branchesSorted: stale-first, then by last-commit age desc.
 func branchesSorted(in []branch.Branch) []branch.Branch {
 	out := make([]branch.Branch, len(in))
@@ -112,7 +179,6 @@ func branchesSorted(in []branch.Branch) []branch.Branch {
 		if si != sj {
 			return si > sj
 		}
-		// older = older time = smaller — but we want oldest first, so:
 		return out[i].LastCommitTime.Before(out[j].LastCommitTime)
 	})
 	return out
