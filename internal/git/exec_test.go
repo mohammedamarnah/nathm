@@ -196,3 +196,24 @@ func TestExec_Checkout(t *testing.T) {
 		}
 	}
 }
+
+func TestExec_FetchPrune_MarksGone(t *testing.T) {
+	repo, _ := newTestRepoWithRemote(t)
+	g := NewExec(repo)
+	if err := g.FetchPrune(); err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	bs, err := g.ListBranches()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range bs {
+		if bs[i].Name == "feature" {
+			if !bs[i].UpstreamGone {
+				t.Fatalf("feature should be marked gone after fetch --prune; got %+v", bs[i])
+			}
+			return
+		}
+	}
+	t.Fatal("feature branch missing")
+}

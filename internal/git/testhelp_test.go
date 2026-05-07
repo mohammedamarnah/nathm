@@ -35,3 +35,24 @@ func writeFile(t *testing.T, dir, name, content string) {
 		t.Fatal(err)
 	}
 }
+
+// newTestRepoWithRemote creates a test repo with a real (local-path) remote
+// and a single tracking branch "feature" whose upstream is later deleted on
+// the remote — useful for testing "gone" detection.
+func newTestRepoWithRemote(t *testing.T) (repo, remote string) {
+	t.Helper()
+	remote = t.TempDir()
+	runIn(t, remote, "git", "init", "-q", "--bare", "-b", "main")
+	repo = newTestRepo(t)
+	runIn(t, repo, "git", "remote", "add", "origin", remote)
+	runIn(t, repo, "git", "push", "-q", "-u", "origin", "main")
+	runIn(t, repo, "git", "checkout", "-q", "-b", "feature")
+	writeFile(t, repo, "f.txt", "f")
+	runIn(t, repo, "git", "add", "f.txt")
+	runIn(t, repo, "git", "commit", "-q", "-m", "f")
+	runIn(t, repo, "git", "push", "-q", "-u", "origin", "feature")
+	runIn(t, repo, "git", "checkout", "-q", "main")
+	// Delete the remote branch so the next fetch --prune marks local "feature" as gone.
+	runIn(t, remote, "git", "branch", "-D", "feature")
+	return repo, remote
+}

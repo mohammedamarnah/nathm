@@ -18,4 +18,5 @@ type Git interface {
 	DeleteBranch(name string, force bool) error
 	RenameBranch(oldName, newName string) error
 	Checkout(name string) error
+	FetchPrune() error
 }
