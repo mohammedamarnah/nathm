@@ -77,5 +77,19 @@ func (e *Exec) MergedInto(br, base string) (bool, error) {
 	return false, fmt.Errorf("git merge-base: %w", err)
 }
 
+func (e *Exec) DeleteBranch(name string, force bool) error {
+	flag := "-d"
+	if force {
+		flag = "-D"
+	}
+	cmd := exec.Command("git", "branch", flag, name)
+	cmd.Dir = e.dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git branch %s %s: %w: %s", flag, name, err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // Compile-time check that *Exec satisfies the Git interface.
 var _ Git = (*Exec)(nil)

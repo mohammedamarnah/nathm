@@ -15,4 +15,5 @@ type Git interface {
 	ListBranches() ([]branch.Branch, error)
 	AheadBehind(branch, base string) (ahead, behind int, err error)
 	MergedInto(branch, base string) (bool, error)
+	DeleteBranch(name string, force bool) error
 }

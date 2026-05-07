@@ -111,3 +111,46 @@ func TestExec_AheadBehind(t *testing.T) {
 		t.Fatalf("ahead/behind = %d/%d, want 1/1", ahead, behind)
 	}
 }
+
+func TestExec_DeleteBranch_Safe(t *testing.T) {
+	dir := newTestRepo(t)
+	runIn(t, dir, "git", "branch", "feature")
+	g := NewExec(dir)
+	if err := g.DeleteBranch("feature", false); err != nil {
+		t.Fatalf("safe delete: %v", err)
+	}
+	bs, _ := g.ListBranches()
+	for _, b := range bs {
+		if b.Name == "feature" {
+			t.Fatal("feature still exists after delete")
+		}
+	}
+}
+
+func TestExec_DeleteBranch_RefusesUnmerged(t *testing.T) {
+	dir := newTestRepo(t)
+	runIn(t, dir, "git", "checkout", "-q", "-b", "wip")
+	writeFile(t, dir, "x.txt", "x")
+	runIn(t, dir, "git", "add", "x.txt")
+	runIn(t, dir, "git", "commit", "-q", "-m", "x")
+	runIn(t, dir, "git", "checkout", "-q", "main")
+
+	g := NewExec(dir)
+	if err := g.DeleteBranch("wip", false); err == nil {
+		t.Fatal("safe delete should refuse unmerged branch")
+	}
+}
+
+func TestExec_DeleteBranch_Force(t *testing.T) {
+	dir := newTestRepo(t)
+	runIn(t, dir, "git", "checkout", "-q", "-b", "wip")
+	writeFile(t, dir, "x.txt", "x")
+	runIn(t, dir, "git", "add", "x.txt")
+	runIn(t, dir, "git", "commit", "-q", "-m", "x")
+	runIn(t, dir, "git", "checkout", "-q", "main")
+
+	g := NewExec(dir)
+	if err := g.DeleteBranch("wip", true); err != nil {
+		t.Fatalf("force delete: %v", err)
+	}
+}
