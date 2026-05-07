@@ -229,6 +229,50 @@ func TestModel_DeleteFailure_KeepsBranchInList(t *testing.T) {
 	}
 }
 
+func TestModel_Filter_LiveFiltering(t *testing.T) {
+	bs := []branch.Branch{
+		{Name: "feature-alpha", LastCommitTime: time.Now()},
+		{Name: "feature-beta", LastCommitTime: time.Now()},
+		{Name: "main", IsCurrent: true, LastCommitTime: time.Now()},
+	}
+	m := NewModel(bs, nil)
+	m.SetSize(120, 30)
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+
+	// Type "feat" — main should disappear immediately (no Enter required).
+	for _, r := range "feat" {
+		m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	out := m.View()
+	if strings.Contains(out, "main") {
+		t.Errorf("main should be filtered out live (no enter):\n%s", out)
+	}
+	if !strings.Contains(out, "feature-alpha") || !strings.Contains(out, "feature-beta") {
+		t.Errorf("feature-* should still be visible:\n%s", out)
+	}
+
+	// Narrow further — beta disappears.
+	for _, r := range "ure-a" {
+		m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	out = m.View()
+	if strings.Contains(out, "feature-beta") {
+		t.Errorf("feature-beta should be filtered out:\n%s", out)
+	}
+	if !strings.Contains(out, "feature-alpha") {
+		t.Errorf("feature-alpha should still be visible:\n%s", out)
+	}
+
+	// Backspace expands matches again.
+	for i := 0; i < 5; i++ {
+		m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyBackspace})
+	}
+	out = m.View()
+	if !strings.Contains(out, "feature-alpha") || !strings.Contains(out, "feature-beta") {
+		t.Errorf("backspace should restore feature-* matches:\n%s", out)
+	}
+}
+
 func TestModel_DeleteConfirm_EnterAlsoConfirms(t *testing.T) {
 	bs := []branch.Branch{
 		{Name: "feature", LastCommitTime: time.Now()},

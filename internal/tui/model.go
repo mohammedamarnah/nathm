@@ -163,6 +163,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			var cmd tea.Cmd
 			m.filter, cmd = m.filter.Update(msg)
+			// Live filter: keep filterText in sync with the input on every
+			// keystroke and rebuild the table so the list updates as you type.
+			m.filterText = m.filter.Value()
+			m.rebuildTable()
 			return m, cmd
 		}
 
