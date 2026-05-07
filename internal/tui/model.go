@@ -407,6 +407,14 @@ func (m *Model) doCheckout() {
 }
 
 func (m *Model) rebuildTable() {
+	// Preserve cursor across rebuilds by remembering the current row's branch name.
+	var prevName string
+	if oldRows := m.table.Rows(); len(oldRows) > 0 {
+		if cur := m.table.Cursor(); cur >= 0 && cur < len(oldRows) && len(oldRows[cur]) >= 2 {
+			prevName = oldRows[cur][1]
+		}
+	}
+
 	cols := []table.Column{
 		{Title: "Sel", Width: 4},
 		{Title: "Branch", Width: 32},
@@ -440,6 +448,15 @@ func (m *Model) rebuildTable() {
 	)
 	if m.width > 0 {
 		m.SetSize(m.width, m.height)
+	}
+
+	if prevName != "" {
+		for i, r := range rows {
+			if len(r) >= 2 && r[1] == prevName {
+				m.table.SetCursor(i)
+				break
+			}
+		}
 	}
 }
 

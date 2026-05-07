@@ -183,3 +183,32 @@ func TestModel_CheckoutFlow(t *testing.T) {
 		t.Fatalf("expected checkout of feature, got %v", g.checkout)
 	}
 }
+
+func TestModel_SelectionPreservesCursor(t *testing.T) {
+	bs := []branch.Branch{
+		{Name: "a", LastCommitTime: time.Now()},
+		{Name: "b", LastCommitTime: time.Now()},
+		{Name: "c", LastCommitTime: time.Now()},
+	}
+	m := NewModel(bs, nil)
+	m.SetSize(120, 30)
+	m.SetCursorByName("b")
+	if got := m.CurrentName(); got != "b" {
+		t.Fatalf("setup: cursor should be on b, got %q", got)
+	}
+	// Toggle selection — must not reset the cursor.
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	if got := m.CurrentName(); got != "b" {
+		t.Fatalf("space should keep cursor on b, got %q", got)
+	}
+	// Toggle off.
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	if got := m.CurrentName(); got != "b" {
+		t.Fatalf("second space should keep cursor on b, got %q", got)
+	}
+	// Sort cycle should also follow the row.
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	if got := m.CurrentName(); got != "b" {
+		t.Fatalf("sort cycle should keep cursor on b, got %q", got)
+	}
+}
