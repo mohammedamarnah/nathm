@@ -101,5 +101,15 @@ func (e *Exec) RenameBranch(oldName, newName string) error {
 	return nil
 }
 
+func (e *Exec) Checkout(name string) error {
+	cmd := exec.Command("git", "checkout", "-q", name)
+	cmd.Dir = e.dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git checkout: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // Compile-time check that *Exec satisfies the Git interface.
 var _ Git = (*Exec)(nil)

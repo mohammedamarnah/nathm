@@ -181,3 +181,18 @@ func TestExec_RenameBranch_TargetExists(t *testing.T) {
 		t.Fatal("expected error renaming to existing branch")
 	}
 }
+
+func TestExec_Checkout(t *testing.T) {
+	dir := newTestRepo(t)
+	runIn(t, dir, "git", "branch", "feature")
+	g := NewExec(dir)
+	if err := g.Checkout("feature"); err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	bs, _ := g.ListBranches()
+	for _, b := range bs {
+		if b.Name == "feature" && !b.IsCurrent {
+			t.Fatal("feature should be current after checkout")
+		}
+	}
+}

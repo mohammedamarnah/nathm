@@ -17,4 +17,5 @@ type Git interface {
 	MergedInto(branch, base string) (bool, error)
 	DeleteBranch(name string, force bool) error
 	RenameBranch(oldName, newName string) error
+	Checkout(name string) error
 }
