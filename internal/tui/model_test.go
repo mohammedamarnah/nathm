@@ -9,6 +9,31 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// tuiFakeGit lets the model run without a real repo.
+type tuiFakeGit struct {
+	deleted  []string
+	renamed  [][2]string
+	checkout []string
+}
+
+func (f *tuiFakeGit) IsRepo() bool                                 { return true }
+func (f *tuiFakeGit) ListBranches() ([]branch.Branch, error)      { return nil, nil }
+func (f *tuiFakeGit) AheadBehind(string, string) (int, int, error) { return 0, 0, nil }
+func (f *tuiFakeGit) MergedInto(string, string) (bool, error)     { return false, nil }
+func (f *tuiFakeGit) DeleteBranch(name string, force bool) error {
+	f.deleted = append(f.deleted, name)
+	return nil
+}
+func (f *tuiFakeGit) RenameBranch(oldN, newN string) error {
+	f.renamed = append(f.renamed, [2]string{oldN, newN})
+	return nil
+}
+func (f *tuiFakeGit) Checkout(name string) error {
+	f.checkout = append(f.checkout, name)
+	return nil
+}
+func (f *tuiFakeGit) FetchPrune() error { return nil }
+
 func TestModel_View_RendersBranches(t *testing.T) {
 	bs := []branch.Branch{
 		{Name: "main", IsCurrent: true, LastCommitTime: time.Now()},
@@ -97,5 +122,25 @@ func TestModel_StaleOnlyToggle(t *testing.T) {
 	}
 	if !strings.Contains(out, "gone-1") {
 		t.Errorf("gone-1 should still be shown:\n%s", out)
+	}
+}
+
+func TestModel_DeleteFlow(t *testing.T) {
+	bs := []branch.Branch{
+		{Name: "feature", LastCommitTime: time.Now()},
+		{Name: "main", IsCurrent: true, Protected: true, LastCommitTime: time.Now()},
+	}
+	g := &tuiFakeGit{}
+	m := NewModel(bs, g)
+	m.SetSize(120, 30)
+	// Press d.
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if !m.Confirming() {
+		t.Fatal("expected confirm modal active")
+	}
+	// Press y — should call DeleteBranch.
+	m, _ = updateModel(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	if len(g.deleted) != 1 || g.deleted[0] != "feature" {
+		t.Fatalf("expected delete of feature, got %v", g.deleted)
 	}
 }
