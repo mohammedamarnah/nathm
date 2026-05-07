@@ -4,10 +4,12 @@ package tui
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
@@ -16,24 +18,42 @@ import (
 	"github.com/USER/nathm/internal/git"
 )
 
+type sortMode int
+
+const (
+	sortStaleFirst sortMode = iota
+	sortName
+	sortAge
+)
+
 // Model is the TUI's root.
 type Model struct {
-	branches []branch.Branch
-	table    table.Model
-	git      git.Git
-	width    int
-	height   int
-	now      time.Time
-	err      string
-	selected map[string]bool
+	branches      []branch.Branch
+	table         table.Model
+	git           git.Git
+	width, height int
+	now           time.Time
+	err           string
+	selected      map[string]bool
+
+	filter     textinput.Model
+	filterOn   bool
+	filterText string
+	sortMode   sortMode
+	staleOnly  bool
 }
 
 func NewModel(branches []branch.Branch, g git.Git) *Model {
+	ti := textinput.New()
+	ti.Placeholder = "filter..."
+	ti.CharLimit = 80
+	ti.Width = 40
 	m := &Model{
 		branches: branches,
 		git:      g,
 		now:      time.Now(),
 		selected: make(map[string]bool),
+		filter:   ti,
 	}
 	m.rebuildTable()
 	return m
@@ -53,6 +73,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.SetSize(msg.Width, msg.Height)
 		return m, nil
 	case tea.KeyMsg:
+		if m.filterOn {
+			switch msg.Type {
+			case tea.KeyEnter, tea.KeyEsc:
+				m.filterOn = false
+				m.filter.Blur()
+				if msg.Type == tea.KeyEsc {
+					m.filterText = ""
+					m.filter.SetValue("")
+				} else {
+					m.filterText = m.filter.Value()
+				}
+				m.rebuildTable()
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.filter, cmd = m.filter.Update(msg)
+			return m, cmd
+		}
 		switch {
 		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
@@ -68,6 +106,19 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.clearSelection()
 			m.rebuildTable()
 			return m, nil
+		case key.Matches(msg, keys.Filter):
+			m.filterOn = true
+			m.filter.SetValue(m.filterText)
+			m.filter.Focus()
+			return m, nil
+		case key.Matches(msg, keys.Sort):
+			m.sortMode = (m.sortMode + 1) % 3
+			m.rebuildTable()
+			return m, nil
+		case key.Matches(msg, keys.StaleOnly):
+			m.staleOnly = !m.staleOnly
+			m.rebuildTable()
+			return m, nil
 		}
 	}
 	var cmd tea.Cmd
@@ -77,11 +128,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) View() string {
 	header := lipgloss.NewStyle().Bold(true).Render("nathm — local branches")
-	footer := dim.Render("space:select / a:all / A:clear / q:quit")
+	mid := m.table.View()
+	footer := dim.Render("space:select / a:all / A:clear / /:filter / s:sort / p:stale-only / q:quit")
+	if m.filterOn {
+		footer = m.filter.View()
+	}
 	if m.err != "" {
 		footer = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Render(m.err)
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, header, m.table.View(), footer)
+	return lipgloss.JoinVertical(lipgloss.Left, header, mid, footer)
 }
 
 func (m *Model) rebuildTable() {
@@ -94,7 +149,7 @@ func (m *Model) rebuildTable() {
 		{Title: "Last commit", Width: 40},
 	}
 	rows := make([]table.Row, 0, len(m.branches))
-	for _, b := range branchesSorted(m.branches) {
+	for _, b := range m.visibleBranches() {
 		marker := "[ ]"
 		if m.selected[b.Name] {
 			marker = "[x]"
@@ -159,7 +214,7 @@ func (m *Model) toggleSelect(name string) {
 }
 
 func (m *Model) selectAllVisible() {
-	for _, b := range branchesSorted(m.branches) {
+	for _, b := range m.visibleBranches() {
 		if !b.Protected && !b.IsCurrent {
 			m.selected[b.Name] = true
 		}
@@ -170,17 +225,41 @@ func (m *Model) clearSelection() {
 	m.selected = map[string]bool{}
 }
 
-// branchesSorted: stale-first, then by last-commit age desc.
-func branchesSorted(in []branch.Branch) []branch.Branch {
+// visibleBranches returns the branches that pass the current filter and stale-only toggle,
+// sorted according to the current sort mode.
+func (m *Model) visibleBranches() []branch.Branch {
+	out := make([]branch.Branch, 0, len(m.branches))
+	for _, b := range m.branches {
+		if m.staleOnly && !b.IsStale() {
+			continue
+		}
+		if m.filterText != "" && !strings.Contains(b.Name, m.filterText) {
+			continue
+		}
+		out = append(out, b)
+	}
+	return m.applySort(out)
+}
+
+func (m *Model) applySort(in []branch.Branch) []branch.Branch {
 	out := make([]branch.Branch, len(in))
 	copy(out, in)
-	sort.SliceStable(out, func(i, j int) bool {
-		si, sj := stalePriority(out[i]), stalePriority(out[j])
-		if si != sj {
-			return si > sj
-		}
-		return out[i].LastCommitTime.Before(out[j].LastCommitTime)
-	})
+	switch m.sortMode {
+	case sortName:
+		sort.SliceStable(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	case sortAge:
+		sort.SliceStable(out, func(i, j int) bool {
+			return out[i].LastCommitTime.Before(out[j].LastCommitTime)
+		})
+	default: // sortStaleFirst
+		sort.SliceStable(out, func(i, j int) bool {
+			si, sj := stalePriority(out[i]), stalePriority(out[j])
+			if si != sj {
+				return si > sj
+			}
+			return out[i].LastCommitTime.Before(out[j].LastCommitTime)
+		})
+	}
 	return out
 }
 
