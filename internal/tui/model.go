@@ -58,6 +58,8 @@ type Model struct {
 	renameOn     bool
 	renameSource string
 	renameInput  textinput.Model
+
+	showHelp bool
 }
 
 func NewModel(branches []branch.Branch, g git.Git) *Model {
@@ -168,6 +170,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Main keymap.
 		switch {
+		case key.Matches(msg, keys.Help):
+			m.showHelp = !m.showHelp
+			return m, nil
 		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, keys.Select):
@@ -217,7 +222,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) View() string {
 	header := lipgloss.NewStyle().Bold(true).Render("nathm — local branches")
 	mid := m.table.View()
-	footer := dim.Render("space:select / a:all / A:clear / /:filter / s:sort / p:stale-only / d:del / D:force / r:rename / c:checkout / q:quit")
+	footer := dim.Render("space:select / a:all / A:clear / /:filter / s:sort / p:stale-only / d:del / D:force / r:rename / c:checkout / ?:help / q:quit")
 	if m.filterOn {
 		footer = m.filter.View()
 	}
@@ -227,10 +232,35 @@ func (m *Model) View() string {
 	if m.err != "" {
 		footer = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Render(m.err)
 	}
+	if m.showHelp {
+		mid = m.renderHelp()
+	}
 	if m.Confirming() {
 		mid = m.renderConfirm()
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, header, mid, footer)
+}
+
+func (m *Model) renderHelp() string {
+	lines := []string{
+		"nathm — keybindings",
+		"",
+		"  ↑/↓ or j/k    navigate",
+		"  space         toggle selection",
+		"  a             select all visible",
+		"  A             clear selection",
+		"  enter / d     delete (cursor or selected)",
+		"  D             force delete",
+		"  r             rename (cursor only)",
+		"  c             checkout",
+		"  /             filter by name",
+		"  s             cycle sort",
+		"  p             toggle stale-only",
+		"  ?             toggle this help",
+		"  q             quit",
+	}
+	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)
+	return box.Render(strings.Join(lines, "\n"))
 }
 
 func (m *Model) renderConfirm() string {

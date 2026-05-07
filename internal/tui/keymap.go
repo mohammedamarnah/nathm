@@ -14,6 +14,7 @@ type keyMap struct {
 	ForceDelete key.Binding
 	Rename      key.Binding
 	Checkout    key.Binding
+	Help        key.Binding
 }
 
 var keys = keyMap{
@@ -28,4 +29,5 @@ var keys = keyMap{
 	ForceDelete: key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "force delete")),
 	Rename:      key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rename")),
 	Checkout:    key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "checkout")),
+	Help:        key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
 }
