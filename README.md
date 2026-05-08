@@ -1,8 +1,16 @@
 # nathm
 
-`nathm` (Arabic نَظْم — *to organize*) is a TUI-first CLI for organization and cleaning up of local git branches.
+`nathm` (Arabic نَظْم — *to organize*) is a TUI for organization and management of git branches.
+
+![demo](docs/demo.gif)
 
 ## Install
+
+Make sure that Go is installed and is in the `PATH`:
+```bash
+echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.zshrc
+source ~/.zshrc
+```
 
 ```bash
 go install github.com/mohammedamarnah/nathm@latest
