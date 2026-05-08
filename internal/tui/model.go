@@ -86,8 +86,10 @@ func NewModel(branches []branch.Branch, g git.Git) *Model {
 
 func (m *Model) SetSize(w, h int) {
 	m.width, m.height = w, h
-	m.table.SetWidth(w)
-	m.table.SetHeight(maxInt(h-3, 5))
+	// Reserve space for the outer frame (border + padding) and four inner rows:
+	// header + blank + blank + footer.
+	m.table.SetWidth(maxInt(w-frameHPad, 20))
+	m.table.SetHeight(maxInt(h-frameVPad-4, 5))
 }
 
 func (m *Model) Init() tea.Cmd { return nil }
@@ -231,9 +233,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	header := lipgloss.NewStyle().Bold(true).Render("nathm — local branches")
+	header := headerStyle.Render("nathm — local branches")
 	mid := m.table.View()
-	footer := dim.Render("space:select / a:all / A:clear / /:filter / s:sort / p:stale-only / d:del / D:force / r:rename / c:checkout / ?:help / q:quit")
+	footer := dim.Render("[space] select / [a] all / [A] clear / [/] filter / [s] sort / [p] stale-only / [d] del / [D] force / [r] rename / [c] checkout / [?] help / [q] quit")
 	if m.filterOn {
 		footer = m.filter.View()
 	}
@@ -250,7 +252,9 @@ func (m *Model) View() string {
 	if m.Confirming() {
 		mid = m.renderConfirm()
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, header, mid, footer)
+	// Blank rows give the title and footer some breathing room from the table.
+	content := lipgloss.JoinVertical(lipgloss.Left, header, "", mid, "", footer)
+	return frameStyle.Render(content)
 }
 
 func (m *Model) renderHelp() string {
